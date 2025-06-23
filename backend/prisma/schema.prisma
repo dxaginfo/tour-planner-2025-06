@@ -1,0 +1,238 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  phone         String?
+  role          UserRole  @default(MUSICIAN)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  bandMembers   BandMember[]
+  createdTours  Tour[]
+  crewAssignments CrewAssignment[]
+  documents     Document[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  BAND_MANAGER
+  MUSICIAN
+  TOUR_MANAGER
+  BOOKING_AGENT
+  CREW
+}
+
+model Band {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  logoUrl     String?
+  website     String?
+  socialLinks Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members     BandMember[]
+  tours       Tour[]
+
+  @@map("bands")
+}
+
+model BandMember {
+  id          String    @id @default(uuid())
+  band        Band      @relation(fields: [bandId], references: [id])
+  bandId      String
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  instrument  String?
+  role        String?
+  joinDate    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([bandId, userId])
+  @@map("band_members")
+}
+
+model Tour {
+  id          String    @id @default(uuid())
+  band        Band      @relation(fields: [bandId], references: [id])
+  bandId      String
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  status      TourStatus @default(PLANNING)
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  events      Event[]
+  documents   Document[]
+
+  @@map("tours")
+}
+
+enum TourStatus {
+  PLANNING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Venue {
+  id          String    @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  state       String?
+  country     String
+  postalCode  String?
+  capacity    Int?
+  website     String?
+  contactName String?
+  contactEmail String?
+  contactPhone String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  events      Event[]
+
+  @@map("venues")
+}
+
+model Event {
+  id            String    @id @default(uuid())
+  tour          Tour      @relation(fields: [tourId], references: [id])
+  tourId        String
+  venue         Venue     @relation(fields: [venueId], references: [id])
+  venueId       String
+  name          String
+  description   String?
+  eventDate     DateTime
+  doorTime      DateTime
+  startTime     DateTime
+  endTime       DateTime
+  loadInTime    DateTime?
+  soundcheckTime DateTime?
+  ticketPrice   Decimal?  @db.Decimal(10, 2)
+  ticketUrl     String?
+  status        EventStatus @default(UNCONFIRMED)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  travelArrangements TravelArrangement[]
+  accommodations    Accommodation[]
+  crewAssignments   CrewAssignment[]
+  documents         Document[]
+
+  @@map("events")
+}
+
+enum EventStatus {
+  UNCONFIRMED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model TravelArrangement {
+  id              String    @id @default(uuid())
+  event           Event     @relation(fields: [eventId], references: [id])
+  eventId         String
+  type            String
+  departureLocation String
+  departureTime   DateTime
+  arrivalLocation String
+  arrivalTime     DateTime
+  confirmationNumber String?
+  provider        String?
+  estimatedCost   Decimal?  @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("travel_arrangements")
+}
+
+model Accommodation {
+  id              String    @id @default(uuid())
+  event           Event     @relation(fields: [eventId], references: [id])
+  eventId         String
+  name            String
+  address         String
+  checkInDate     DateTime
+  checkOutDate    DateTime
+  confirmationNumber String?
+  contactInfo     String?
+  roomCount       Int?
+  estimatedCost   Decimal?  @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("accommodations")
+}
+
+model CrewAssignment {
+  id              String    @id @default(uuid())
+  event           Event     @relation(fields: [eventId], references: [id])
+  eventId         String
+  user            User      @relation(fields: [userId], references: [id])
+  userId          String
+  role            String
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([eventId, userId, role])
+  @@map("crew_assignments")
+}
+
+model Document {
+  id              String    @id @default(uuid())
+  relatedType     DocumentRelatedType
+  relatedId       String
+  name            String
+  fileUrl         String
+  fileType        String
+  size            Int
+  uploadedBy      User      @relation(fields: [uploadedById], references: [id])
+  uploadedById    String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tour            Tour?     @relation(fields: [tourId], references: [id])
+  tourId          String?
+  event           Event?    @relation(fields: [eventId], references: [id])
+  eventId         String?
+
+  @@map("documents")
+}
+
+enum DocumentRelatedType {
+  TOUR
+  EVENT
+  VENUE
+  BAND
+}
